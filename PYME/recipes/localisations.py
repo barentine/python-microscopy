@@ -127,7 +127,7 @@ class DensityMapping(ModuleBase):
 class Pipelineify(ModuleBase):
     inputFitResults = Input('FitResults')
     inputDriftResults = Input('')
-    inputEvents = Input('')
+    inputEvents = Input('Events')
     outputLocalizations = Output('localizations')
 
     pixelSizeNM = Float(1)
