@@ -733,7 +733,7 @@ def get_local_path(filename, serverfilter):
         if os.path.exists(localpath):
             return localpath
 
-def get_file(filename, serverfilter=local_serverfilter, numRetries=3, use_file_cache=True, local_short_circuit=True):
+def get_file(filename, serverfilter=local_serverfilter, numRetries=2, use_file_cache=True, local_short_circuit=True):
     """
     Get a file from the cluster.
     
@@ -780,7 +780,7 @@ def get_file(filename, serverfilter=local_serverfilter, numRetries=3, use_file_c
     while nTries < numRetries and len(locs) == 0:
         #retry, giving a little bit of time for the data servers to come up
         logger.debug('Could not find file, retrying ...')
-        time.sleep(1)
+        time.sleep(5)
         nTries += 1
         locs = locate_file(filename, serverfilter, return_first_hit=True)
 
