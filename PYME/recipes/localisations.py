@@ -1,9 +1,11 @@
 from .base import register_module, ModuleBase, Filter
-from .traits import Input, Output, Float, Enum, CStr, Bool, Int, List, DictStrStr, DictStrFloat, DictStrList, ListFloat, ListStr
+from .traits import Input, Output, Float, Enum, CStr, Bool, Int, List, DictStrStr, DictStrFloat, DictStrList, ListFloat, ListStr, ListInt
 
 import numpy as np
 from PYME.IO import tabular
 from PYME.LMVis import renderers
+import logging
+logger = logging.getLogger(__name__)
 
 
 @register_module('ExtractTableChannel')
@@ -825,3 +827,152 @@ class AutocorrelationDriftCorrection(ModuleBase):
         
         namespace[self.outputName] = out
 
+
+@register_module('CropLocalizationROIs')
+class CropLocalizationROIs(ModuleBase):
+    """
+
+    Crop ROIs around all localizations from the input tabular source. For 
+    multiview data, this should be called separately for each color channel - 
+    ROIs will be cropped from all views of that color.
+
+    Parameters
+    ----------
+    input_name: Input
+        PYME.IO.tabular
+    input_series: Input
+        [optional] PYME.IO.image.ImageStack, single color. Will try to find the 
+        corresponding ImageStack if this field is left blank, and DataSourceID 
+        entry is present in the tabular input metadata.
+    roi_half_size: Float
+        [optional]
+
+    Returns
+    -------
+    output_name: Output
+        PYME.IO.image.ImageStack of cropped ROIs. Each frame is an ROI, so the 
+        slice corresponds to the localization index in input. Color, dim 4, 
+        corresponds to various multiview channels, if present.
+    
+    Notes
+    -----
+    Depending on datasource, will likely be faster to sort localizations by time
+    before calling this module.
+    """
+    input_name = Input('input')
+    input_series = Input('')
+
+    roi_half_size = Float(0)
+
+    output_name = Output('roi_stack')
+
+    def execute(self, namespace):
+        from PYME.IO.image import ImageStack
+        from PYME.IO import MetaDataHandler
+        from PYME.Analysis.points.multiview import calc_shifts_for_points, load_shiftmap
+
+        points = namespace[self.input_name]
+
+        if self.input_series != '':
+            series = namespace[self.input_series]
+        else:  # guess series name from points
+            series_id = points.mdh['Analysis.DataFileURI']
+            series =  ImageStack(filename=series_id)
+
+        # pull roi size from metadata if not provided
+        roi_half_size = self.roi_half_size
+        if roi_half_size < 1:
+            roi_half_size = points.mdh['Analysis.ROISize']
+        roi_half_floor = int(np.floor(roi_half_size))
+
+        roi_size = int(2 * roi_half_size + 1)
+
+        # convert positions to indices
+        x_pixel_nm, y_pixel_nm = points.mdh['voxelsize.x'] * 1e3, points.mdh['voxelsize.y'] * 1e3
+        x, y, t = points['x'], points['y'], points['t']
+
+        # handle multiple views, to an extent. Assume single color
+        try:  # deal first with folding
+            channel_color = points.mdh['Multiview.ChannelColor']
+            color = points['probe'][0]  # only points from a single color should be input to this function
+            channels = np.argwhere(channel_color == color).squeeze()
+            # get baseline shift from having folded everything into the zeroth channel
+            channel_offsets = points.mdh['Multiview.ROISize'][1] * channels * points.mdh['voxelsize.x'] * 1e3
+        except KeyError:
+            channel_offsets = [0]
+
+        # if a shiftmap has registered everything (to the zeroth channel) try to shift-back to pixels
+        try:
+            # use exact shifts if present
+            dx, dy = points['chromadx'], points['chromady']
+        except KeyError:
+            # the shifts at the point's new locations will not be exactly what they were at the old positions,
+            # but hopefully close enough to get the localization in the roi
+            try:
+                shiftmap = load_shiftmap(points.mdh['Multiview.shift_map.location'])
+                dx, dy = calc_shifts_for_points(points, shiftmap)
+                logger.warning('Shifts not present in datasource, back-propogating using already shifted locations')
+            except KeyError:
+                logger.debug('No shiftmap corrections applied')
+                dx, dy = 0, 0
+        x -= dx
+        y -= dy
+
+        rois = []
+        for offset in channel_offsets:  # views will be the 'color' of the ImageStack
+            x_crop = x + offset
+            rois.append(self.crop_rois(x_crop, y, t, series.data[:,:,:,0], x_pixel_nm, y_pixel_nm, roi_size, roi_half_floor))
+
+        roi_stack = ImageStack(data=rois, mdh=points.mdh)
+
+        namespace[self.output_name] = roi_stack
+    
+    @staticmethod
+    def crop_rois(x, y, t, series, x_pixel_nm, y_pixel_nm, roi_size, roi_half_floor=None):
+        """
+        TODO - is there a better home for this?
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            x positions [nm]
+        y : numpy.ndarray
+            y positions [nm]
+        t: numpy.ndarray
+            frame numbers for each point
+        series : numpy.ndarray
+            Sliceable array of image data to crop from
+        x_pixel_nm: float
+            x pixel size, in nanometers
+        y_pixel_nm: float
+            y pixel size, in nanometers
+        roi_size: int
+            roi size to crop, in pixels, preferably odd
+        
+        Returns
+        -------
+        cropped: ndarray
+            cropped ROIs, slice [dim 2] corresponds to the position index.
+        """
+        n_points = len(x)
+        roi_half_floor = roi_half_floor if roi_half_floor is not None else int(0.5 * roi_size)
+        # ducktype alert
+        rois = np.empty((roi_size, roi_size, n_points), dtype=series[0, 0, 0].dtype)
+        # shouldn't need to worry about ROI offsets here
+        x_i = (np.round(x / x_pixel_nm) - roi_half_floor).astype(int)
+        x_f = x_i + roi_size
+        y_i = (np.round(y / y_pixel_nm) - roi_half_floor).astype(int)
+        y_f = y_i + roi_size
+        t = t.astype(int)
+
+        for ind in range(n_points):
+            roi = series[x_i[ind]:x_f[ind], y_i[ind]:y_f[ind], t[ind]]
+            # pad with zeros if we're on an edge
+            rdiff, cdiff = np.asarray(rois.shape[:2]) - np.asarray(roi.shape[:2])
+            if rdiff != 0 or cdiff != 0:
+                rois[:, :, ind] = np.pad(roi, ((0, rdiff), (0, cdiff)), 
+                                         mode='constant', constant_values=0)
+            else:
+                rois[:, :, ind] = roi
+
+        return rois
