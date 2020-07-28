@@ -12,13 +12,16 @@ echo $PREFIX
 
 if [ -n "$OSX_ARCH" ]
 	then
-		cd $RECIPE_DIR/../../osxLaunchers
-		xcodebuild -alltargets
+		if python -c 'import sys; print(sys.version_info[0])' == 2
+			then
+				cd $RECIPE_DIR/../../osxLaunchers
+				xcodebuild -alltargets
 
-		cp -r ./build/Release/*.app $PREFIX
+				cp -r ./build/Release/*.app $PREFIX
 
-		install_name_tool -change @rpath/libpython2.7.dylib @executable_path/../../../lib/libpython2.7.dylib $PREFIX/VisGUI.app/Contents/MacOS/VisGUI
-		install_name_tool -change @rpath/libpython2.7.dylib @executable_path/../../../lib/libpython2.7.dylib $PREFIX/dh5view.app/Contents/MacOS/dh5view
+				install_name_tool -change @rpath/libpython2.7.dylib @executable_path/../../../lib/libpython2.7.dylib $PREFIX/VisGUI.app/Contents/MacOS/VisGUI
+				install_name_tool -change @rpath/libpython2.7.dylib @executable_path/../../../lib/libpython2.7.dylib $PREFIX/dh5view.app/Contents/MacOS/dh5view
+		fi
 fi
 
 #echo "Attempting to build and install go components"
