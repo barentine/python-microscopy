@@ -51,3 +51,21 @@ class _IntFloat(BaseFloat):
         if val == np.round(val):
             val = int(val)
         return val
+
+class UserParameter(object):
+    pass
+
+
+class UserFloat(Float, UserParameter):
+    default_value = 0.0
+    info_text = 'float to be filled by user/templated'
+
+
+class UserInt(Int, UserParameter):
+    default_value = 0
+    info_text = 'int to be filled by user/templated'
+
+
+class UserStr(CStr, UserParameter):
+    default_value = ''
+    info_text = 'str to be filled by user/templated'
