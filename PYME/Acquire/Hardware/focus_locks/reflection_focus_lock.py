@@ -326,6 +326,9 @@ class ReflectedLinePIDFocusLock(PID):
 
         scan_positions = np.arange(min_offset, max_offset + step_size, 
                                    step_size)
+        # up then down - sometimes oil takes movement to settle out the profile
+        scan_positions = np.concatenate([scan_positions, scan_positions[::-1]], 
+                                        axis=0)
         assert len(scan_positions) > 0
 
         for pos in scan_positions:
