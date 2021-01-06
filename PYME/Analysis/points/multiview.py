@@ -275,13 +275,15 @@ def pair_molecules(t_index, x0, y0, which_chan, delta_x=[None], appear_in=np.ara
     x_kept = x[keep] in order to only look at kept molecules.
 
     """
+    t_index = t_index.astype(np.int32)
+    n_frame_sep = int(n_frame_sep)
     # take out any large linear shifts for the sake of easier pairing
     x, y = correlative_shift(x0, y0, which_chan, pix_size_nm)
     # group within a certain distance, potentially based on localization uncertainty
     if not delta_x[0]:
         delta_x = 100.*np.ones_like(x)
     # group localizations
-    assigned = pyDeClump.findClumps(t_index.astype(np.int32), x, y, delta_x, n_frame_sep)
+    assigned = pyDeClump.findClumps(t_index, x, y, delta_x, n_frame_sep)
     # print assigned.min()
 
     # only look at clumps with localizations from each channel
