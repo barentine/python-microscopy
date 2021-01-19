@@ -689,7 +689,10 @@ def tile_pyramid(out_folder, ds, xm, ym, mdh, split=False, skipMoveFrames=False,
         if xdp[i - 1] == xdp[i] or not skipMoveFrames:
             x_i = xdp[i]
             y_i = ydp[i]
-            d = ds[:, :, i].astype('f') - dark
+            try:
+                d = ds[:, :, i].astype('f') - dark
+            except (IOError, OSError) as e:
+                logger.error(str(e))
             if not flat is None:
                 d = d * flat
             
