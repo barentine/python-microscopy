@@ -333,7 +333,7 @@ class ReflectedLinePIDFocusLock(PID):
             
             self.piezo.SetOffset(pos)
             
-            time.sleep(0.3)
+            time.sleep(0.75)
             if self.lockable(self._ok_tolerance):
                 logger.debug('found focus, offset %.1f' % pos)
                 self.EnableLock()
