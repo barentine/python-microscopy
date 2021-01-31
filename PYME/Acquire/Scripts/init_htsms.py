@@ -25,7 +25,7 @@ from PYME.Acquire.ExecTools import joinBGInit, init_gui, init_hardware
 
 from PYME import config
 #enable high-throughput style directory hashing
-config.config['acquire-spool_subdirectories'] = True
+# config.config['acquire-spool_subdirectories'] = True
 
 @init_hardware('XY Stage')  # FIXME - may need module-level locks if we add 'x' and 'y' of the xy stage as different piezos
 def mz_stage(scope):
@@ -186,7 +186,7 @@ def interlock(MainFrame, scope):
     from PYME.Acquire.interlock import InterlockServer
     import yaml
 
-    email_info = config['email-info-path']
+    email_info = config.get('email-info-path')
     with open(email_info, 'r') as f:
         email_info = yaml.safe_load(f)
 
@@ -235,7 +235,7 @@ def chained_analysis(main_frame, scope):
     defaults = {}
     rec_dir = 'C:\\Users\\Bergamot\\PYMEData\\recipes'
 
-    tilerec = os.path.join(rec_dir, '20200118_tile_detect_filter_queue_subset.yaml')
+    tilerec = os.path.join(rec_dir, '20210125_tile_detect_filter_queue_subset.yaml')
     with open(tilerec) as f:
         tilerec = f.read()
     defaults['htsms-tile'] = [RecipeRuleFactory(recipe=tilerec)]
@@ -250,7 +250,7 @@ def chained_analysis(main_frame, scope):
             "Analysis.GPUPCTBackground": True,
             "Analysis.PCTBackground": 0.25,
             "Analysis.ROISize": 7.5,
-            "Analysis.StartAt": 0,
+            "Analysis.StartAt": 32,
             "Analysis.TrackFiducials": False,
             "Analysis.subtractBackground": True,
     })
