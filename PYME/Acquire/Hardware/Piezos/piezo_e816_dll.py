@@ -231,8 +231,8 @@ class piezo_e816T(PiezoBase):
         if identifier is None:
             devices = get_connected_devices()
             identifier = devices[0]
-
-        self.id = gcs.ConnectUSB(identifier)
+        self._identifier = identifier
+        self.id = gcs.ConnectUSB(self._identifier)
         
         if not Osen is None:
             # self.ser_port.write('SPA A8 %3.4f\n' % Osen)
@@ -257,8 +257,6 @@ class piezo_e816T(PiezoBase):
         self.driftCompensation = False
         self.hasTrigger = hasTrigger
 
-        self.loopActive = True
-        self.stopMove = False
         self.position = np.array([0.])
         # self.velocity = np.array([self.maxvelocity, self.maxvelocity])
 
@@ -266,8 +264,15 @@ class piezo_e816T(PiezoBase):
         # self.targetVelocity = self.velocity.copy()
 
         self.lastTargetPosition = self.position.copy()
+        self._start_loop()
 
 
+        
+    
+    def _start_loop(self):
+
+        self.loopActive = True
+        self.stopMove = False
         self.tloop = threading.Thread(target=self._Loop)
         self.tloop.daemon=True
         self.tloop.start()
@@ -343,10 +348,16 @@ class piezo_e816T(PiezoBase):
 
     def ReInit(self):
         with self.lock:
-            #self.ser_port.write('WTO A0\n')
+            logging.info('restarting e816')
+            self.loopActive = False
+            time.sleep(1.0)
+            self.id = gcs.ConnectUSB(self._identifier)
             gcs.SVO(self.id, b'A', [1])
-            time.sleep(1)
+            time.sleep(1.0)
             self.lastPos = self.GetPos()
+        
+        logging.info('reinitialized, starting loop')
+        self._start_loop()
 
     def OnTarget(self):
         return self.onTarget
