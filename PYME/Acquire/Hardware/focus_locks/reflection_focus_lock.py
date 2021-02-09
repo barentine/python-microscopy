@@ -219,6 +219,7 @@ class ReflectedLinePIDFocusLock(PID):
             self.piezo.LogFocusCorrection(self.piezo.GetOffset())
             self.set_auto_mode(False)
             logger.debug('Disabling focus lock')
+            time.sleep(0.01)
 
     def register(self):
         if self.mode == 'time':
@@ -312,7 +313,7 @@ class ReflectedLinePIDFocusLock(PID):
         return bool(abs(self.peak_position - self.setpoint) < tolerance)
     
     @webframework.register_endpoint('/ReacquireLock', output_is_json=False)
-    def ReacquireLock(self, step_size=3.):
+    def ReacquireLock(self, step_size=3., start_at=0.0, pause=0.75):
         """Routine to call if we've lost the lock. The lock is disabled,
         objective is moved to its lowest position, and we step upwards gradually
         until we get decent fits on the profile and the profile is sufficiently
@@ -325,23 +326,41 @@ class ReflectedLinePIDFocusLock(PID):
             number of microns to step the objective position by when searching, 
             by default 3.
         """
+        from itertools import zip_longest
         step_size = float(step_size)
+        start_at = float(start_at)
+        pause = float(pause)
         logger.debug('reacquiring lock')
         self.DisableLock()
 
         min_offset = self.piezo.GetMinOffset()
         max_offset = self.piezo.GetMaxOffset()
+        start_at = max(min_offset, min(max_offset, start_at))  # clip
+        # if start_at < 0.1:
+        #     scan_positions = np.arange(min_offset, max_offset + step_size, 
+        #                                step_size)
+        # else:
+            
+        scan_up = np.arange(start_at, max_offset + step_size, step_size).tolist()
+        scan_up.append(max_offset)
+        scan_down = np.arange(start_at - step_size, min_offset, -step_size).tolist()
+        scan_down.append(min_offset)
+        scan_positions = [item for sub in zip_longest(scan_up, scan_down) for item in sub]
+        scan_positions = [pos for pos in scan_positions if pos is not None]
 
-        scan_positions = np.arange(min_offset, max_offset + step_size, 
-                                   step_size)
+        
+
         assert len(scan_positions) > 0
+        cut = min(len(scan_positions), 10)
+        # try not to be overly mean to the pifoc, step small after first 10
+        scan_positions = scan_positions[:cut] + sorted(scan_positions)
 
         for pos in scan_positions:
             logger.debug('looking for focus, offset: %.1f' % pos)
             
             self.piezo.SetOffset(pos)
             
-            time.sleep(0.3)
+            time.sleep(pause)
             if self.lockable(self._ok_tolerance):
                 logger.debug('found focus, offset %.1f' % pos)
                 self.EnableLock()
@@ -361,6 +380,10 @@ class ReflectedLinePIDFocusLock(PID):
             if not self.LockOK():
                 logger.debug('still not OK, starting pause/reacquire sequence')
                 time.sleep(5)
+                if hasattr(self.scope, '_stage_leveler'):
+                    pos = self.scope.GetPos()
+                    offset = self.scope._stage_leveler.lookup_offset(pos['x'], pos['y'])
+                    self.ReacquireLock(start_at=offset)
                 self.ReacquireLock()
             else:
                 logger.debug('lock OK')
@@ -472,6 +495,8 @@ class RLPIDFocusLockClient(object):
         while self.LockEnabled() and retry < retries:
             logger.debug('lock still enabled, holding')
             retry += 1
+        # for some reason it takes a bit for the piezo to log the offset update event
+        time.sleep(0.01)  # so give it a chance to get that done
         logger.debug('continuing')
 
     def DisableLock(self):
@@ -498,8 +523,8 @@ class RLPIDFocusLockClient(object):
         return self._session.get(self.base_url + '/SetSubtractionProfile')
     
     @webframework.register_endpoint('/ReacquireLock', output_is_json=False)
-    def ReacquireLock(self, step_size=3.):
-        return self._session.get(self.base_url + '/ReacquireLock?step_size=%3.3f' % (step_size,))
+    def ReacquireLock(self, step_size=3., start_at=0):
+        return self._session.get(self.base_url + '/ReacquireLock?step_size=%3.3f&start_at=%3.3f' % (step_size, start_at))
     
     def DisableLockAfterAcquiring(self):
         r = self._session.get(self.base_url + '/DisableLockAfterAcquiring')

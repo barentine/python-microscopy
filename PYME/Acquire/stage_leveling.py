@@ -164,7 +164,7 @@ class StageLeveler(object):
             if hasattr(self, '_focus_lock') and not self._focus_lock.LockOK():
                 logger.debug('focus lock not OK, scanning offset')
                 # self.scan_offset_until_ok()
-                self._focus_lock.ReacquireLock()
+                self._focus_lock.ReacquireLock(start_at=-25)
                 time.sleep(1.)
 
                 if self._focus_lock.LockOK():
@@ -231,3 +231,26 @@ class StageLeveler(object):
         if len(self._scans) < 1:
             raise UserWarning('no scans available, call StageLeveler.measure_offsets() first')
         StageLeveler.plot_scan(self._scans[index], interpolation_factor=interpolation_factor)
+    
+    def store_scan(self, index=-1):
+        self._current_scan = self._scans[index]
+    
+    @property
+    def current_scan(self):
+        try:
+            return self._current_scan
+        except AttributeError as e:
+            if len(self._scans) > 0:
+                return self._scans[-1]
+            else:
+                raise e
+    
+    def lookup_offset(self, x, y):
+        from scipy.interpolate import interp2d
+        try:
+            scan = self.current_scan
+        except AttributeError:
+            logger.error('no scan, returning 0 for offset lookup')
+            return 0
+        f = interp2d(scan['x'], scan['y'], scan['offset'])
+        return f(x, y)[0]
