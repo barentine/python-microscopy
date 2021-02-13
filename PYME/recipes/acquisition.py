@@ -139,7 +139,7 @@ class QueueAcquisitions(OutputModule):
         
         # queue a high-nice call to shut off all lasers when we're done
         session.post(dest + '?timeout=%f&nice=%d&max_duration=%f' % (self.timeout,
-                                                                        np.iinfo(int).max,
+                                                                        100,
                                                                         self.max_duration),
                         data=json.dumps([{
                             'FunctionAction': {
