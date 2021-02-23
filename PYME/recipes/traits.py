@@ -25,8 +25,8 @@ class Input(CStr):
         # make sure we're not assigning to an output of this module
         mod_outputs = getattr(object, 'outputs', [])
         if value in mod_outputs:
-            # trying to assign input to output
-            raise TraitError('Assigning "%s" to input "%s" would result in a circular reference (value is in module outputs).' % (value, name))
+            pass# trying to assign input to output
+            #raise TraitError('Assigning "%s" to input "%s" would result in a circular reference (value is in module outputs).' % (value, name))
             
         # make sure we are not assigning to any downstream outputs
         recipe = getattr(object, '_parent', None)
