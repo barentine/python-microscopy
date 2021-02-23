@@ -3,7 +3,9 @@ from .traits import Input, Output, Float, Enum, CStr, Bool, Int, List, DictStrSt
 
 import numpy as np
 from PYME.IO import tabular
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 @register_module('Octree')
@@ -381,3 +383,68 @@ class Ripleys(ModuleBase):
             pass
         
         namespace[self.outputName] = res
+
+
+@register_module('BICGaussianMixtureModel')
+class BICGaussianMixtureModel(ModuleBase):
+    input_points = Input('input')
+    n_max = Int(1)
+    covariance = Enum(('full', 'tied', 'diag', 'spherical'))
+    output_labeled = Output('labeled_points')
+    # output_model = Output('gmm')
+    def execute(self, namespace):
+        from sklearn.mixture import GaussianMixture
+        from PYME.IO import MetaDataHandler
+        
+        points = namespace[self.input_points]
+        X = np.stack([points['x'], points['y'], points['z']], axis=1)
+        
+        n_components = range(1, self.n_max + 1)
+        bic = np.zeros(len(n_components))
+        for ind in range(len(n_components)):
+            gmm = GaussianMixture(n_components=n_components[ind], 
+                                  covariance_type=self.covariance)
+            gmm.fit(X)
+            bic[ind] = gmm.bic(X)
+            logger.debug('%d BIC: %f' % (n_components[ind], bic[ind]))
+        
+        best = n_components[np.argmin(bic)]
+        gmm = GaussianMixture(n_components=best,
+                              covariance_type=self.covariance)
+        predictions = gmm.fit_predict(X)
+        out = tabular.MappingFilter(points)
+        try:
+            out.mdh = MetaDataHandler.DictMDHandler(points.mdh)
+        except AttributeError:
+            pass
+
+        out.addColumn('gmm_label', predictions)
+        namespace[self.output_labeled] = out
+
+
+@register_module('BayesianGaussianMixtureModel')
+class BayesianGaussianMixtureModel(ModuleBase):
+    input_points = Input('input')
+    n_components = Int(1)
+    covariance = Enum(('full', 'tied', 'diag', 'spherical'))
+    output_labeled = Output('labeled_points')
+    def execute(self, namespace):
+        from sklearn.mixture import BayesianGaussianMixture
+        from PYME.IO import MetaDataHandler
+        
+        points = namespace[self.input_points]
+        X = np.stack([points['x'], points['y'], points['z']], axis=1)
+        
+        bgm = BayesianGaussianMixture(n_components=self.n_components,
+                                      covariance_type=self.covariance)
+        predictions = bgm.fit_predict(X)
+
+        out = tabular.MappingFilter(points)
+        try:
+            out.mdh = MetaDataHandler.DictMDHandler(points.mdh)
+        except AttributeError:
+            pass
+
+        out.addColumn('bgm_label', predictions)
+        namespace[self.output_labeled] = out
+        
