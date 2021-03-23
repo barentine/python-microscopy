@@ -133,7 +133,8 @@ class StackSettingsAboutFocus(ModuleBase):
         mdh = MetaDataHandler.DictMDHandler({
             'StackSettings.StartPos': bottom,
             'StackSettings.EndPos': top,
-            'StackSettingsAboutFocus.Center': res[1]
+            # numpy float32 won't serialize later
+            'StackSettingsAboutFocus.Center': float(res[1])
         })
         logger.debug('StartPos %.3f, EndPos %.3f' % (bottom, top))
         if self.step_size != 0:
