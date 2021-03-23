@@ -43,8 +43,8 @@ class GaussFitter1D(object):
         -------
         model : ndarray
         """
-        amplitude, center, sigma, b = parameters
-        return amplitude * np.exp(-((position - center) ** 2) / (2 * sigma ** 2)) + b
+        amplitude, center, sigma, bx, b = parameters
+        return amplitude * np.exp(-((position - center) ** 2) / (2 * sigma ** 2)) + bx * position + b
 
     def _error_function(self, parameters, position, data):
         """
@@ -57,8 +57,8 @@ class GaussFitter1D(object):
         amplitude = p95 - offset
         max_ind = np.argmin(np.abs(data - p95))
         fwhm = np.sum(data > offset + 0.5 * amplitude)
-        # amplitude, center, sigma, b = parameters
-        return amplitude, position[max_ind], fwhm / 2.355, offset
+        # amplitude, center, sigma, bx, b = parameters
+        return amplitude, position[max_ind], fwhm / 2.355, 0, offset
 
     def fit(self, position, data):
         from scipy import optimize
@@ -85,32 +85,41 @@ class StackSettingsAboutFocus(ModuleBase):
     def execute(self, namespace):
         from scipy.ndimage import laplace
         from PYME.Analysis.piezo_movement_correction import correct_target_positions
-        from PYME.recipes.processing import Threshold
+        # from PYME.recipes.processing import Threshold
 
         im = namespace[self.input_stack]
-
+        
         z = correct_target_positions(np.arange(im.data.shape[2]), im.events, im.mdh)
+
+        bin_edges = np.arange(z.min() - 0.5 * im.mdh['StackSettings.StepSize'],
+                              z.max() + 1.5 * im.mdh['StackSettings.StepSize'],
+                              im.mdh['StackSettings.StepSize'])
+        
+        binned = np.digitize(z, bin_edges)
+        uni = np.unique(binned)
+        
+            
         if 'Multiview.ActiveViews' in im.mdh:
             # dodge striping in the middle
             from PYME.recipes.multiview import ExtractMultiviewChannel
-            lps = []
+            nvars = []
             for view in im.mdh['Multiview.ActiveViews']:
                 chan = ExtractMultiviewChannel(view_number=view).apply_simple(im)
-                lps.append(np.stack([laplace(chan.data[:,:,ind,0].squeeze()) for ind in range(chan.data.shape[2])], axis=2))
-            lp = np.concatenate(lps, axis=0)
+                nvars.append(np.var(chan.data[:,:,:,0], axis=(0, 1)) / np.mean(chan.data[:,:,:,0], axis=(0, 1)))
+            nvar = np.mean(nvars, axis=0)
         else:
-            lp = np.stack([laplace(im.data[:,:,ind,0].squeeze()) for ind in range(im.data.shape[2])], axis=2)
+            nvar = np.var(im.data[:,:,:,0], axis=(0, 1)) / np.mean(im.data[:,:,:,0], axis=(0, 1))
 
-
-        otsu = Threshold(method='otsu').apply_simple(im)
-        masked = otsu.data[:,:,:,0] * lp
-        metric = np.sum(masked ** 2, axis=(0, 1))
-
-        step_size = im.mdh['StackSettings.StepSize']
-        next_stack = np.argmin(np.abs(z - z[z < z.min() + 0.5 * step_size][0])) + 1
+        metric = []
+        z_filt = []
+        for label in uni:
+            this = label == binned
+            I = np.argmax(nvar[this])
+            metric.append(nvar[this][I])
+            z_filt.append(z[this][I])
 
         fitter = GaussFitter1D()
-        res, success = fitter.fit(z[:next_stack], metric[:next_stack])
+        res, success = fitter.fit(np.array(z_filt), np.array(metric))
         if not success:
             raise RuntimeError('Fit did not converge')
 
