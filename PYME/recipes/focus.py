@@ -55,7 +55,7 @@ class StackSettingsAboutFocus(ModuleBase):
 
         metric_interp = interp1d(z_filt, metric, kind='quadratic')
 
-        zz = np.linspace(z.min(), z.max(), 10 * len(z_filt))
+        zz = np.linspace(np.min(z_filt), np.max(z_filt), 10 * len(z_filt))
         zinterpmax = float(zz[np.argmax(metric_interp(zz))])
         # fitted = fitter._model_function(res, zz)
         # plt.plot(zz, fitted)
