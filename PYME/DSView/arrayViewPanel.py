@@ -34,6 +34,7 @@ import scipy
 # import pylab
 import matplotlib.cm
 
+from PYME.ui import wx_compat
 
 LUTCache = {}
 
@@ -429,7 +430,7 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
             sc2 = sc*step
 
         
-        im2 = wx.BitmapFromImage(im)
+        im2 = wx_compat.BitmapFromImage(im)
         dc.DrawBitmap(im2,-sc2/2,-sc2/2)
         
         self._draw_selection(self, dc) 
@@ -453,7 +454,7 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
             xs = min(s.GetWidth(), xs)
             ys = min(s.GetHeight(), ys)
 
-        MemBitmap = wx.EmptyBitmap(xs, ys)
+        MemBitmap = wx_compat.EmptyBitmap(xs, ys)
         MemDC = wx.MemoryDC()
         OldBitmap = MemDC.SelectObject(MemBitmap)
 
@@ -867,7 +868,7 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
             level = -self.do.scale
             
             #if (level > len(self.do.ds.levels)):
-            level = int(min(level, len(self.do.ds.levels)))
+            level = int(min(level, len(self.do.ds.levels)-1))
             step = int(2**(-numpy.ceil(numpy.log2(sc))-level))
             
             _s = 1.0/(2**level)
@@ -878,6 +879,8 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
             # y0_ = int(y0_*_s)
             # sX_ = int(sX_*_s)
             # sY_ = int(sY_*_s)
+
+            print('level:', level)
             
             ds = self.do.ds.levels[level]
         else:
@@ -942,7 +945,7 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
             #print('seg.shape, ima.shape:', seg.shape, ima.shape)
             self._map_colour(seg, gain, offset, cmap, ima)
 #        
-        img = wx.ImageFromData(ima.shape[1], ima.shape[0], ima.ravel())
+        img = wx_compat.ImageFromData(ima.shape[1], ima.shape[0], ima.ravel())
         img.Rescale(img.GetWidth()*sc2,img.GetHeight()*sc2*self.aspect)
         self._oldIm = img
         self._oldImSig = sig
