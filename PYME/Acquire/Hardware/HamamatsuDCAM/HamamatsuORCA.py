@@ -93,6 +93,7 @@ class HamamatsuORCA(HamamatsuDCAM, CameraMapMixin):
         self.initialized = False
         self.bs = 0
         self.nReadOut = 0
+        self._seconds_of_buffer = 2
 
         self._n_frames_leftover = 0
 
@@ -183,7 +184,7 @@ class HamamatsuORCA(HamamatsuDCAM, CameraMapMixin):
         HamamatsuDCAM.StartExposure(self)
 
         # Allocate buffers (2 seconds of buffers)
-        self.bs = int(max(int(2.0*self._frameRate), 1))
+        self.bs = int(max(int(self._seconds_of_buffer*self._frameRate), 1))
         self.checkStatus(dcam.dcambuf_alloc(self.handle, ctypes.c_int32(
             self.bs)),
                          "dcambuf_alloc")
