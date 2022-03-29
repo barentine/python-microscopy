@@ -743,3 +743,42 @@ class SpoolControllerWrapper(object):
         else:
             self.spool_controller.start_spooling(filename, preflight_mode=preflight_mode)
         return 'OK'
+
+
+class SpoolControllerServer(webframework.APIHTTPServer, SpoolControllerWrapper):
+    def __init__(self, spool_controller, port, bind_address=''):
+        """
+        
+        NOTE - this will likely not be around long, as it would be preferable to
+        add the SpoolControllerWrapper to `PYME.acquire_server.AcquireHTTPServer` 
+        and run a single server process on the microscope computer.
+        However, at the moment that requires a separate microscope instance,
+        while this can be added to a standard wx GUI frontend
+
+        Parameters
+        ----------
+        spool_controller : SpoolController
+            already initialized
+        port : int
+            port to listen on
+        bind_address : str, optional
+            specifies ip address to listen on, by default '' will bind to local 
+            host.
+        """
+        webframework.APIHTTPServer.__init__(self, (bind_address, port))
+        SpoolControllerWrapper.__init__(self, spool_controller)
+        
+        self.daemon_threads = True
+        self._server_thread = threading.Thread(target=self._serve)
+        self._server_thread.daemon_threads = True
+        self._server_thread.start()
+
+    def _serve(self):
+        try:
+            logger.info('Starting SpoolController server on %s:%s' % (self.server_address[0], self.server_address[1]))
+            self.serve_forever()
+        finally:
+            logger.info('Shutting down SpoolController server ...')
+            self.shutdown()
+            self.server_close()
+
