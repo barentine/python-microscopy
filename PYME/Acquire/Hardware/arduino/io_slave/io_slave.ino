@@ -41,14 +41,23 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
+
+  pinMode(7, OUTPUT);    // sets the digital pin 4 as output
+  digitalWrite(7, LOW);  // sets the digital pin 4 off
+  pinMode(2, OUTPUT);    // sets the digital pin 2 as output
+  digitalWrite(2, LOW);  // sets the digital pin 2 off
+  pinMode(4, OUTPUT);    // sets the digital pin 4 as output
+  digitalWrite(4, LOW);  // sets the digital pin 4 off
   
-  // Attach and null servos
-  servos[9].attach(9);
-  servos[10].attach(10);
-  servos[11].attach(11);
-  servos[0].write(0);
-  servos[10].write(0);
-  servos[11].write(0);
+//  
+//
+//  // Attach and null servos
+//  // servos[9].attach(9);
+//  // servos[10].attach(10);
+//  // servos[11].attach(11);
+//  // servos[0].write(0);
+//  // servos[10].write(0);
+//  // servos[11].write(0);
 }
 
 
@@ -216,5 +225,3 @@ void serialPoll() {
     } 
   }
 }
-
-
