@@ -155,7 +155,7 @@ class VisGUICore(object):
         
         
             from .layer_panel import CreateLayerPane, CreateLayerPanel
-            CreateLayerPane(sidePanel, self)
+            self._layer_pane = CreateLayerPane(sidePanel, self)
             #CreateLayerPanel(self)
             
             if self.use_shaders:
@@ -411,6 +411,22 @@ class VisGUICore(object):
         #from .layer_wrapper import LayerWrapper
         from .layers.pointcloud import PointCloudRenderLayer
         l = PointCloudRenderLayer(self.pipeline, method=method, dsname=ds_name, **kwargs)
+        self.add_layer(l)
+
+        logger.debug('Added layer, datasouce=%s' % l.dsname)
+        return l
+
+    def add_mesh_layer(self, method='shaded', ds_name=None, **kwargs):
+        from PYME.LMVis.layers.mesh import TriangleRenderLayer
+        from PYME.misc.colormaps import cm
+        if ds_name is None:
+            from PYME.experimental._triangle_mesh import TriangleMesh
+            mesh_ds = [k for k, d in self.pipeline.dataSources.items() if isinstance(d, TriangleMesh)]
+            ds_name = mesh_ds[-1]
+        ds_stub = ds_name.rstrip('0123456789')
+        _, surf_count = self.pipeline.new_ds_name(ds_stub, return_count=True)
+        surf_count -= 1  # To match current count
+        l = TriangleRenderLayer(self.pipeline, dsname=ds_name, method=method, cmap = cm.solid_cmaps[surf_count % len(cm.solid_cmaps)])
         self.add_layer(l)
 
         logger.debug('Added layer, datasouce=%s' % l.dsname)
@@ -774,14 +790,16 @@ class VisGUICore(object):
             #self.CreateFoldPanel()
             print('Gui stuff done')
         
-        if recipe_callback:
-            recipe_callback()
+        try:
+            if recipe_callback:
+                recipe_callback()
             
-        self.SetFit()
+        finally:
+            self.SetFit()
         
         
-        wx.CallLater(100, self._create_base_layer)
-        #wx.CallAfter(self.RefreshView)
+            wx.CallLater(100, self._create_base_layer)
+            #wx.CallAfter(self.RefreshView)
 
     def OpenChannel(self, filename, recipe_callback=None, channel_name=''):
         args = self._populate_open_args(filename)

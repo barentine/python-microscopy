@@ -51,6 +51,8 @@ class HistLimitPanel(wx.Panel):
         self.limit_lower = float(limit_lower)
         self.limit_upper = float(limit_upper)
 
+        self.SetBackgroundColour(wx.WHITE)
+
         self.textSize = 10
         self.log = log
 
@@ -227,6 +229,9 @@ class HistLimitPanel(wx.Panel):
         pointlist = [(i,h_i) for i, h_i in zip(range(len(h)), h)]
         pointlist = [(0,maxy)] + pointlist + [(self.Size[0], maxy)]
 
+        #self.SetBackgroundMode(wx.SOLID)
+        #dc.SetBackgroundMode(wx.BRUSHSTYLE_SOLID)
+        dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
         dc.Clear()
 
         #when being used to determine histogram bins
@@ -421,7 +426,7 @@ class HistLimitEditDialog(wx.Dialog):
 
         sizer2.Add(self.tMax, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
-        sizer1.Add(sizer2, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)    
+        sizer1.Add(sizer2, 0, wx.ALL, 5)    
         
         btSizer = wx.StdDialogButtonSizer()
 
@@ -436,7 +441,7 @@ class HistLimitEditDialog(wx.Dialog):
 
         btSizer.Realize()
 
-        sizer1.Add(btSizer, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        sizer1.Add(btSizer, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
 
         self.SetSizer(sizer1)
         sizer1.Fit(self)

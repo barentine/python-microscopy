@@ -52,7 +52,7 @@ class LayerPane(afp.foldingPane):
         #self.vsizer.Add(self.nb, 1, wx.ALL|wx.EXPAND, 0)
         if add_button:
             bAddLayer = wx.Button(self.pan, -1, 'New', style=wx.BU_EXACTFIT)
-            bAddLayer.Bind(wx.EVT_BUTTON, lambda e : self.visFr.add_pointcloud_layer())
+            bAddLayer.Bind(wx.EVT_BUTTON, self.add_layer)
     
             self.vsizer.Add(bAddLayer, 0, wx.ALIGN_CENTRE, 0)
 
@@ -62,7 +62,7 @@ class LayerPane(afp.foldingPane):
         #print('Creating layer panel')
         
         self.visFr.layer_added.connect(self.update)
-        #self.fp.fold_signal.connect(self._layout)
+        self.fp.fold_signal.connect(panel._layout)
         
         #self.nb.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
 
@@ -112,7 +112,7 @@ class LayerPane(afp.foldingPane):
             h += (n_layers -1)*(item.stCaption.GetBestSize().height+5)
         
         print('height: ', h)
-        self.fp.SetMinSize((200, h))
+        #self.fp.SetMinSize((200, h))
         
         #self.vsizer.Fit(self.pan)
         #self.pan.SetMinSize(self.pan.GetSize())
@@ -130,6 +130,17 @@ class LayerPane(afp.foldingPane):
 
         if n_layers > 1:
             item.Unfold()
+
+    def add_layer(self, evt):
+        dlg = wx.SingleChoiceDialog(self.visFr, 'Choose type of layer to add:', 'Add Layer', ['points', 'mesh', 'image', 'tracks'])
+        if dlg.ShowModal() == wx.ID_OK:
+            type = dlg.GetStringSelection()
+            if type == 'points':        
+                self.visFr.add_pointcloud_layer()
+            elif type == 'mesh':
+                self.visFr.add_mesh_layer()
+            else:
+                raise NotImplementedError('Layer type "%s" not supported yet' % type)
         
     def _update(self, *args, **kwargs):
         
