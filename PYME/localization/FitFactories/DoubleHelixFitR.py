@@ -63,6 +63,9 @@ fresultdtype=[('tIndex', '<i4'),
                             ('sigma', '<f4'), 
                             ('background', '<f4')]),
               ('length', '<f4'),
+              ('x', '<f4'),
+              ('y', '<f4'),
+              ('theta', '<f4'),
               ('resultCode', '<i4'), 
               ('slicesUsed', [('x', [('start', '<i4'),('stop', '<i4'),('step', '<i4')]),
                               ('y', [('start', '<i4'),('stop', '<i4'),('step', '<i4')]),
@@ -295,7 +298,7 @@ class DumbellFitFactory(FFBase.FitFactory):
             
             bgm = np.mean(background)
 
-            guess = (amp, x0_nm[ind], y0_nm[ind], amp, x1_nm[ind], y1_nm[ind], 250/2.35, dataMean.min()) # FIXME - want to fit unsubtracted data, add bg to model
+            guess = (amp, x0_nm[ind], y0_nm[ind], amp, x1_nm[ind], y1_nm[ind], 160, dataMean.min())
             
             #do the fit
             (res, cov_x, infodict, mesg, resCode) = self.solver(self.fitfcn, guess, data, sigma, X, Y, background)
@@ -308,27 +311,38 @@ class DumbellFitFactory(FFBase.FitFactory):
                 pass
             
             length = np.sqrt((res[1] - res[4])**2 + (res[2] - res[5])**2)
+            x_com = 0.5 * (res[1] + res[4])
+            y_com = 0.5 * (res[2] + res[5])
+            theta = np.arctan2(res[4] - res[1], res[5] - res[2])
             
             if False:
                 #display for debugging purposes
                 import matplotlib.pyplot as plt
-                plt.figure(figsize=(15, 5))
-                plt.subplot(141)
+                plt.figure(figsize=(20, 5))
+                plt.subplot(151)
+                plt.title('Background')
+                plt.imshow(background)
+                plt.colorbar()
+                plt.subplot(152)
+                plt.title('Background Sub')
                 plt.imshow(dataMean)
                 plt.colorbar()
-                plt.subplot(142)
-                plt.imshow(f_dumbell(startParameters, X, Y))
+                plt.subplot(153)
+                plt.title('Init. Guess')
+                plt.imshow(f_dumbell(guess, X, Y))
                 plt.colorbar()
-                plt.subplot(143)
+                plt.subplot(154)
+                plt.title('Fitted Results')
                 plt.imshow(f_dumbell(res, X, Y))
                 plt.colorbar()
-                plt.subplot(144)
+                plt.subplot(155)
+                plt.title('Residuals')
                 plt.imshow(dataMean-f_dumbell(res, X, Y))
                 plt.colorbar()
 
             #package results
             results[ind] = pack_results(FitResultsDType, self.metadata.tIndex, res, fit_errors, startParams=guess, slicesUsed=(xslice, yslice, zslice), 
-                                resultCode=resCode, subtractedBackground=bgm, length=length)
+                                resultCode=resCode, subtractedBackground=bgm, length=length, x=x_com, y=y_com, theta=theta)
             # results[ind] = FitResultR(res, self.metadata, (xslice, yslice, zslice), resCode, fitErrors, bgm, length)
         
         return results
@@ -407,11 +421,11 @@ MULTIFIT=True # weird way to say it, but flag that this module does its own dete
 import PYME.localization.MetaDataEdit as mde
 
 PARAMETERS = [
-    mde.IntParam('Analysis.ROISize', u'ROI half size', 7),
+    mde.IntParam('Analysis.ROISize', u'ROI half size', 10),
     # mde.BoolParam('Analysis.GPUPCTBackground', 'Calculate percentile background on GPU', True),
     mde.FloatParam('Analysis.DetectionFilterMag', 'Detection Filter Scaling Magnification:', 0.15,
                  'Currently the steerable filter is defined with a sigma=1 pix filter, so manually scale it to match your double helix PSF'),
-    mde.FloatParam('Analysis.LobeSepGuess', 'Double Helix Lobe Separation Guess [nm]:', 800,
+    mde.FloatParam('Analysis.LobeSepGuess', 'Double Helix Lobe Separation Guess [nm]:', 900,
                    'What lobe separation should the fit expect, and therefore begin with?')
 ]
 
