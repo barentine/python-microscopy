@@ -29,12 +29,19 @@ from PYME.Analysis._fithelpers import FitModelWeighted, FitModelWeightedJac
 
 ##################
 # Model functions
-def f_dumbell(p, X, Y):
-    """"""
+def f_dumbell(p, X, Y, bgd=None):
+    """
+    bgd: ndarray, optional
+        per-pixel background if previously estimated, to be
+        added onto the model so it doesn't have to be subtracted
+        and mess up the noise model.
+    """
     A, x0, y0, B, x1, y1, s, bg = p
     X = X[:,None]
     Y = Y[None,:]
     r = A*np.exp(-((X-x0)**2 + (Y - y0)**2)/(2*s**2)) + B*np.exp(-((X-x1)**2 + (Y - y1)**2)/(2*s**2)) + bg 
+    if bgd is not None:
+        r += bgd
     #print r.shape    
     return r
 
@@ -291,7 +298,7 @@ class DumbellFitFactory(FFBase.FitFactory):
             guess = (amp, x0_nm[ind], y0_nm[ind], amp, x1_nm[ind], y1_nm[ind], 250/2.35, dataMean.min()) # FIXME - want to fit unsubtracted data, add bg to model
             
             #do the fit
-            (res, cov_x, infodict, mesg, resCode) = self.solver(self.fitfcn, guess, dataMean, sigma, X, Y)
+            (res, cov_x, infodict, mesg, resCode) = self.solver(self.fitfcn, guess, data, sigma, X, Y, background)
 
             #try to estimate errors based on the covariance matrix
             fit_errors=None
