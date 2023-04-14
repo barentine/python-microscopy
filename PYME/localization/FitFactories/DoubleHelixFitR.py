@@ -190,8 +190,8 @@ class Detector(object):
 
 
 def lobe_estimate_from_center_pixel(x_pix, y_pix, orientation, lobe_sep_px):
-    dx = np.cos(orientation) * lobe_sep_px
-    dy = np.sin(orientation) * lobe_sep_px
+    dx = np.cos(orientation) * lobe_sep_px * 0.5
+    dy = np.sin(orientation) * lobe_sep_px * 0.5
     x1 = x_pix - dx
     y1 = y_pix - dy
     x2 = x_pix + dx
@@ -404,7 +404,7 @@ PARAMETERS = [
     # mde.BoolParam('Analysis.GPUPCTBackground', 'Calculate percentile background on GPU', True),
     mde.FloatParam('Analysis.DetectionFilterMag', 'Detection Filter Scaling Magnification:', 0.15,
                  'Currently the steerable filter is defined with a sigma=1 pix filter, so manually scale it to match your double helix PSF'),
-    mde.FloatParam('Analysis.LobeSepGuess', 'Double Helix Lobe Separation Guess [nm]:', 700,
+    mde.FloatParam('Analysis.LobeSepGuess', 'Double Helix Lobe Separation Guess [nm]:', 800,
                    'What lobe separation should the fit expect, and therefore begin with?')
 ]
 
