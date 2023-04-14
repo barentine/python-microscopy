@@ -252,7 +252,8 @@ class DumbellFitFactory(FFBase.FitFactory):
         print(bgd.shape)
         print(self.noiseSigma.shape)
         
-        strength_image, angle_image = _dh_detector.filter_frame(bgd)
+        # Note PYME flips row/col y/x, so feed the detector a Transposed frame to get it 'right'
+        strength_image, angle_image = _dh_detector.filter_frame(bgd.T)
 
         row, col, orientation = _dh_detector.extract_candidates(strength_image, angle_image, threshold * self.noiseSigma.squeeze())
 
