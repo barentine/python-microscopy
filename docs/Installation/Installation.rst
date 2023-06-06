@@ -74,15 +74,19 @@ On OSX, use ``/path/to/conda/environment/python.app/Contents/MacOS/python setup.
 Windows users who do not already have MSVC build tools need to install them. On some verisons of Python this can be done using conda, however a more general approach is to download Visual Studio (the free, community version - the installer is also used for downloading build tools). 
 Customize as needed, but for a 64 bit Windows 10 computer you will likely need the following individual components:
 
+* C++/CLI support for vXXX build tools (latest)
+* MSVC vXXX - VS YEAR C++ x64/x86 build tools (latest)
+* C++ core features
 * Windows 10 SDK
-* MSVC v142 - VS 2019 C++ x64/x86 build tools (latest)
-* C++/CLI support for v142 build tools (latest)
 * Windows Universal C runtime
+
+The remaining components will likely have been added for you after selecting the ones above:
+* .NET Framework X.X SDK
+* .NET Framework X.X.X targeting pack 
+
+Potentially also needed:
 * C++ Universal Windows Platform runtime
 * C++ Build Tools core Features
-* C++ core features
-* .NET Framework 4.8 SDK
-* .NET Framework 4.6.1 targeting pack 
 
 
 
