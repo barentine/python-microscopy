@@ -538,7 +538,7 @@ class GaussianMixtureModel(ModuleBase):
         # n_components = np.linspace(min_search, max_search, max_grid_points, dtype=int)
         n_components = np.arange(min_search, max_search + 1, 
                                  int((max_search - min_search) / max_grid_points), dtype=int)
-        print('checking n_components: %s' % n_components)
+        logger.debug('checking n_components: %s' % n_components)
         bic = np.zeros(len(n_components))
         for ind in range(len(n_components)):
             gmm = GaussianMixture(n_components=n_components[ind],
@@ -551,7 +551,7 @@ class GaussianMixtureModel(ModuleBase):
             logger.debug('%d BIC: %f' % (n_components[ind], bic[ind]))
         best_ind = np.argmin(bic)
         best = n_components[best_ind]
-        print('Best BIC: %d' % best)
+        logger.debug('Best BIC: %d' % best)
         min_search = n_components[max(best_ind - 1, 0)] + 1
         max_search = n_components[min(best_ind + 1, len(n_components) - 1)] - 1
         # check if we finished
@@ -559,8 +559,8 @@ class GaussianMixtureModel(ModuleBase):
             # we're done - on a rail, just catching this to avoid the next elif
             logger.debug('Finished - on a rail')
         elif n_components[1] - n_components[0] > 1:
-            print('current minimum with %d components' % best)
-            print('homing search from %d to %d' % (min_search, max_search))
+            logger.debug('current minimum with %d components' % best)
+            logger.debug('homing search from %d to %d' % (min_search, max_search))
             next_n = min(max_search - min_search, max_grid_points)
             best = self._check_bic_grid(X, min_search, max_search, next_n)
 
