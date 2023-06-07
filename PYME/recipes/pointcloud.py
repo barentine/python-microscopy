@@ -429,9 +429,10 @@ class GaussianMixtureModel(ModuleBase):
     """
     input_points = Input('input')
     n = Int(1)
-    mode = Enum(('n', 'bic', 'bayesian'))
+    mode = Enum(('n', 'bic', 'gridsearch_bic', 'bayesian'))
     covariance = Enum(('full', 'tied', 'diag', 'spherical'))
     max_iter = Int(100)
+    n_initializations = Int(1)
     init_params = Enum(('kmeans', 'random'))
     label_key = CStr('gmm_label')
     output_labeled = Output('labeled_points')
@@ -442,12 +443,17 @@ class GaussianMixtureModel(ModuleBase):
 
         points = namespace[self.input_points]
         X = np.stack([points['x'], points['y'], points['z']], axis=1)
+        if np.all(points['z'] == points['z'][0]):
+            # we have 2D data, make this faster for us
+            logger.debug('Z is flat, using 2D GMM')
+            X = np.stack([points['x'], points['y']], axis=1)
 
         if self.mode == 'n':
             gmm = GaussianMixture(n_components=self.n,
                                   covariance_type=self.covariance,
                                   max_iter=self.max_iter,
-                                  init_params=self.init_params)
+                                  init_params=self.init_params,
+                                  n_init=self.n_initializations)
             predictions = gmm.fit_predict(X) + 1  # PYME labeling scheme
             log_prob = gmm.score_samples(X)
             if not gmm.converged_:
@@ -462,7 +468,8 @@ class GaussianMixtureModel(ModuleBase):
                 gmm = GaussianMixture(n_components=n_components[ind],
                                       covariance_type=self.covariance,
                                       max_iter=self.max_iter,
-                                      init_params=self.init_params)
+                                      init_params=self.init_params,
+                                      n_init=self.n_initializations)
                 gmm.fit(X)
                 bic[ind] = gmm.bic(X)
                 logger.debug('%d BIC: %f' % (n_components[ind], bic[ind]))
@@ -481,12 +488,28 @@ class GaussianMixtureModel(ModuleBase):
                 logger.error('GMM fitting did not converge')
                 predictions = np.zeros(len(points), int)
                 log_prob = - np.inf * np.ones(len(points))
+        elif self.mode == 'gridsearch_bic':
+            # n is treated as max
+            best = self._check_bic_grid(X, 1, self.n)
+            print('BEST: %d' % best)
+            gmm = GaussianMixture(n_components=best,
+                                  covariance_type=self.covariance,
+                                  max_iter=self.max_iter,
+                                  init_params=self.init_params,
+                                  n_init=self.n_initializations)
+            predictions = gmm.fit_predict(X) + 1  # PYME labeling scheme
+            log_prob = gmm.score_samples(X)
+            if not gmm.converged_:
+                logger.error('GMM fitting did not converge')
+                predictions = np.zeros(len(points), int)
+                log_prob = - np.inf * np.ones(len(points))
         
         elif self.mode == 'bayesian':
             bgm = BayesianGaussianMixture(n_components=self.n,
                                           covariance_type=self.covariance,
                                           max_iter=self.max_iter,
-                                          init_params=self.init_params)
+                                          init_params=self.init_params,
+                                          n_init=self.n_initializations)
             predictions = bgm.fit_predict(X) + 1  # PYME labeling scheme
             log_prob = bgm.score_samples(X)
             if not bgm.converged_:
@@ -508,3 +531,39 @@ class GaussianMixtureModel(ModuleBase):
             avg_log_prob[mask] = np.mean(log_prob[mask])
         out.addColumn(self.label_key + '_avg_log_prob', avg_log_prob)
         namespace[self.output_labeled] = out
+
+    def _check_bic_grid(self, X, min_search, max_search, max_grid_points=5):
+        from sklearn.mixture import GaussianMixture
+        # n_components = np.linspace(1, self.n, 10, dtype=int)
+        # n_components = np.linspace(min_search, max_search, max_grid_points, dtype=int)
+        n_components = np.arange(min_search, max_search + 1, 
+                                 int((max_search - min_search) / max_grid_points), dtype=int)
+        print('checking n_components: %s' % n_components)
+        bic = np.zeros(len(n_components))
+        for ind in range(len(n_components)):
+            gmm = GaussianMixture(n_components=n_components[ind],
+                                    covariance_type=self.covariance,
+                                    max_iter=self.max_iter,
+                                    init_params=self.init_params,
+                                    n_init=self.n_initializations)
+            gmm.fit(X)
+            bic[ind] = gmm.bic(X)
+            logger.debug('%d BIC: %f' % (n_components[ind], bic[ind]))
+        best_ind = np.argmin(bic)
+        best = n_components[best_ind]
+        print('Best BIC: %d' % best)
+        min_search = n_components[max(best_ind - 1, 0)] + 1
+        max_search = n_components[min(best_ind + 1, len(n_components) - 1)] - 1
+        # check if we finished
+        if best_ind == 0 or best_ind == len(n_components) - 1:
+            # we're done - on a rail, just catching this to avoid the next elif
+            logger.debug('Finished - on a rail')
+        elif n_components[1] - n_components[0] > 1:
+            print('current minimum with %d components' % best)
+            print('homing search from %d to %d' % (min_search, max_search))
+            next_n = min(max_search - min_search, max_grid_points)
+            best = self._check_bic_grid(X, min_search, max_search, next_n)
+
+        logger.debug('Finished BIC search, best: %d' % best)
+        # we're done
+        return best
