@@ -1,6 +1,5 @@
 from .base import register_module, ModuleBase, Filter
 from .traits import Input, Output, Float, Enum, CStr, Bool, Int, List, DictStrStr, DictStrList, ListFloat, ListStr, DictStrAny
-
 import numpy as np
 from PYME.IO import tabular
 import logging
@@ -533,22 +532,29 @@ class GaussianMixtureModel(ModuleBase):
         namespace[self.output_labeled] = out
 
     def _check_bic_grid(self, X, min_search, max_search, max_grid_points=5):
-        from sklearn.mixture import GaussianMixture
-        # n_components = np.linspace(1, self.n, 10, dtype=int)
-        # n_components = np.linspace(min_search, max_search, max_grid_points, dtype=int)
+        import multiprocessing
         n_components = np.arange(min_search, max_search + 1, 
                                  int((max_search - min_search) / max_grid_points), dtype=int)
         logger.debug('checking n_components: %s' % n_components)
         bic = np.zeros(len(n_components))
+        params = [{'n_components': n_components[ind], 'covariance_type': self.covariance,
+                   'max_iter': self.max_iter, 'init_params': self.init_params,
+                   'n_init': self.n_initializations} for ind in range(len(n_components))]
+        processes = []
+        queue = multiprocessing.Queue()
         for ind in range(len(n_components)):
-            gmm = GaussianMixture(n_components=n_components[ind],
-                                    covariance_type=self.covariance,
-                                    max_iter=self.max_iter,
-                                    init_params=self.init_params,
-                                    n_init=self.n_initializations)
-            gmm.fit(X)
-            bic[ind] = gmm.bic(X)
-            logger.debug('%d BIC: %f' % (n_components[ind], bic[ind]))
+            p = multiprocessing.Process(target=_gmm, args=(X, params[ind], queue))
+            p.start()
+            processes.append(p)
+        results = []
+        for p in processes:
+            p.join()
+            results.append(queue.get())
+        
+        logger.debug(results)
+        results = sorted(results, key=lambda x: x[0])
+        bic = np.asarray([results[ind][1] for ind in range(len(results))])
+            
         best_ind = np.argmin(bic)
         best = n_components[best_ind]
         logger.debug('Best BIC: %d' % best)
@@ -567,3 +573,12 @@ class GaussianMixtureModel(ModuleBase):
         logger.debug('Finished BIC search, best: %d' % best)
         # we're done
         return best
+
+def _gmm(X, gmm_args, queue):
+    from sklearn.mixture import GaussianMixture
+    gmm = GaussianMixture(**gmm_args)
+    n = gmm_args['n_components']
+    gmm.fit(X)
+    bic = gmm.bic(X)
+    logger.debug('%d BIC: %f' % (n, bic))
+    queue.put((n, float(bic)))
