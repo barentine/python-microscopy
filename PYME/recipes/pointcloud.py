@@ -441,11 +441,13 @@ class GaussianMixtureModel(ModuleBase):
         from PYME.IO import MetaDataHandler
 
         points = namespace[self.input_points]
-        X = np.stack([points['x'], points['y'], points['z']], axis=1)
         if np.all(points['z'] == points['z'][0]):
             # we have 2D data, make this faster for us
             logger.debug('Z is flat, using 2D GMM')
-            X = np.stack([points['x'], points['y']], axis=1)
+            X = np.stack([points['x'].astype(np.float32), points['y'].astype(np.float32)], axis=1)
+        else:
+            X = np.stack([points['x'].astype(np.float32), points['y'].astype(np.float32), points['z'].astype(np.float32)], axis=1)
+        
 
         if self.mode == 'n':
             gmm = GaussianMixture(n_components=self.n,
@@ -534,7 +536,7 @@ class GaussianMixtureModel(ModuleBase):
     def _check_bic_grid(self, X, min_search, max_search, max_grid_points=5):
         import multiprocessing
         n_components = np.arange(min_search, max_search + 1, 
-                                 int((max_search - min_search) / max_grid_points), dtype=int)
+                                 int((max_search - min_search) / (max_grid_points - 1)), dtype=int)
         logger.debug('checking n_components: %s' % n_components)
         bic = np.zeros(len(n_components))
         params = [{'n_components': n_components[ind], 'covariance_type': self.covariance,
