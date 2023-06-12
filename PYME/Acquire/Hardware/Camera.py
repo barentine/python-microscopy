@@ -115,6 +115,7 @@ class Camera(object):
     MODE_CONTINUOUS = 1
     MODE_SOFTWARE_TRIGGER = 2
     MODE_HARDWARE_TRIGGER = 3
+    MODE_HARDWARE_START_TRIGGER = 4
 
 
     def __init__(self, *args, **kwargs):
