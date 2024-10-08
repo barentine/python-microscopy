@@ -95,6 +95,8 @@ class PicosecondDelayer(object):
 
         scope.state.registerHandler('PicosecondDelayer.Delay_ps', getFcn=lambda : self.delay, 
                                     setFcn=lambda y: self.__class__.delay.__set__(self, y))
+        scope.state.registerHandler('PicosecondDelayer.Enabled', getFcn=lambda : self.io, 
+                                    setFcn=lambda y: self.__class__.io.__set__(self, y))
     
     def __del__(self):
         # make sure display on box is useful
