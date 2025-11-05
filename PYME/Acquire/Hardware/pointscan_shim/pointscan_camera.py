@@ -111,7 +111,9 @@ class BaseScanner(object):
     @width.setter
     def width(self, width):
         self._scan_params['n_x'] = int(width)
-    
+        # rebuild buffers
+        self.allocate_buffers(self.n_buffers)
+
     @property
     def height(self):
         return self._scan_params['n_y']
@@ -119,6 +121,8 @@ class BaseScanner(object):
     @height.setter
     def height(self, height):
         self._scan_params['n_y'] = int(height)
+        # rebuild buffers
+        self.allocate_buffers(self.n_buffers)
     
     @property
     def voxel_dwell_time(self):
