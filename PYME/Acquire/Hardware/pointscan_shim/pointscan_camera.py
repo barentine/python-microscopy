@@ -210,6 +210,7 @@ class BaseScanner(object):
             self.free_buffers = queue.Queue()
             self.full_buffers = queue.Queue()
             self.n_full = 0
+            self.n_buffers = n_buffers
             for ind in range(n_buffers):
                 self.free_buffers.put(np.zeros((self.width, self.height), 
                                             dtype=self.dtype))
