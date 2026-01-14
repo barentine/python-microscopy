@@ -282,7 +282,7 @@ class PointscanCameraShim(Camera):
                 time.sleep(0.05)
     
     def ExpReady(self):
-        return (self.full_buffers is not None) and (self.n_full > 0)
+        return (self.full_buffers is not None) and (self.n_full > 0) and (not self._idle)
     
     def ExtractColor(self, ch_slice, mode):
         # get nowait to hard-throw an Empty error if we've entered this method
@@ -368,6 +368,8 @@ class PointscanCameraShim(Camera):
         self.scanner.scan(wait_until_done=wait_until_done)
     
     def StartExposure(self):
+        if self._idle:
+            return False
         logger.debug('StartAq')
         if self._poll:
             # stop, we'll allocate buffers and restart
@@ -544,4 +546,11 @@ class PointscanCameraShim(Camera):
     @property
     def YVals(self):
         return np.array([0, 1]) * self.scanner.voxelsize_y_nm
+    
+    def SetIdle(self, idle=True):
+        # kill continuous scanning flag
+        self.scanner.keep_scanning = False
+        super().SetIdle(idle)
+        # toggle buffer polling
+        self._poll = not idle
 
