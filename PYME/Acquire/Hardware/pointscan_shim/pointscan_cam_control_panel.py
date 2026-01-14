@@ -1,6 +1,7 @@
 
 import wx
 from PYME.Acquire.Hardware.pco import pco_sdk_cam_control_panel
+from PYME.Acquire.ui.idle_control import IdleModeControl
 import threading
 import time
 
@@ -144,6 +145,7 @@ class PointScanCamControl(pco_sdk_cam_control_panel.PcoSdkCamControl):
         self.scope = scope
         
         self.ctrls = [pco_sdk_cam_control_panel.ModeControl(self, cam),
+                        IdleModeControl(self, scope),
                       ScanParamControl(self, cam)]
         
         self._init_ctrls()
