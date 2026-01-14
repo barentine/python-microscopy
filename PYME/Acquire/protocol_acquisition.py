@@ -176,11 +176,13 @@ class ProtocolAcquisition(AcquisitionBase):
                                                                 shape=kwargs.pop('shape', [-1,-1,1,-1,1]),  # spooled aquisitions are time series (for now)
                                                                 **kwargs)
             
-        else: # assume hdf
+        
+        elif backend_type in ['file', 'File', 'hdf', acquisition_backends.HDFBackend]: # assume hdf
             self._backend = acquisition_backends.HDFBackend(self.filename, complevel=kwargs.pop('complevel', 6), complib=kwargs.pop('complib','zlib'),
                             shape=kwargs.pop('shape', [-1,-1,1,-1,1]),  # spooled aquisitions are time series (for now)
                             **kwargs)
-        
+        else:
+            self._backend = backend_type(self.filename, **kwargs)
         
         self._stopping = False
 
@@ -189,12 +191,12 @@ class ProtocolAcquisition(AcquisitionBase):
         return self._backend.mdh
 
     def StartSpool(self):
-        from PYME import warnings
+        from PYME import pyme_warnings as warnings
         warnings.warn('StartSpool is deprecated. Use start instead', DeprecationWarning)
         self.start()
 
     def StopSpool(self):
-        from PYME import warnings
+        from PYME import pyme_warnings as warnings
         warnings.warn('StopSpool is deprecated. Use stop instead', DeprecationWarning)
         self.stop()
     

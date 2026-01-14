@@ -1,3 +1,17 @@
+# attempt to suppress warnings about taking the address of packed struct members
+# we know our struct is aligned correctly for int4
+cdef extern from *:
+    """
+    #ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Waddress-of-packed-member"
+    #endif
+    #ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+    #endif
+    """
+from libc.stdint cimport int32_t
 cimport numpy as np
 import numpy as np
 cimport cython
@@ -29,25 +43,25 @@ NODE_DTYPE2 = [('depth', 'i4'),
 
 #the struct that the above dtype maps to in c
 cdef packed struct node_d:
-    np.int32_t depth
-    np.int32_t n_children
-    np.int32_t child0
-    np.int32_t child1
-    np.int32_t child2
-    np.int32_t child3
-    np.int32_t child4
-    np.int32_t child5
-    np.int32_t child6
-    np.int32_t child7
-    np.int32_t parent
-    np.int32_t nPoints
+    int32_t depth
+    int32_t n_children
+    int32_t child0
+    int32_t child1
+    int32_t child2
+    int32_t child3
+    int32_t child4
+    int32_t child5
+    int32_t child6
+    int32_t child7
+    int32_t parent
+    int32_t nPoints
     np.float32_t centre_x
     np.float32_t centre_y
     np.float32_t centre_z
     np.float32_t centroid_x
     np.float32_t centroid_y
     np.float32_t centroid_z
-    np.int32_t point_idx
+    int32_t point_idx
     
     
 cdef float[8] _octant_sign_x
@@ -195,7 +209,7 @@ cdef class Octree:
         cdef int node_idx, child_idx
         #cdef node_d * p_nodes
         cdef node_d node
-        cdef np.int32_t *children
+        cdef int32_t *children
         #p_nodes = <node_d*>&nodes[0]
         node_idx = 0
         node = self._cnodes[node_idx]
@@ -206,6 +220,7 @@ cdef class Octree:
         while node.nPoints >= self._samples_per_node:
             children = &node.child0
             new_idx = children[child_idx]
+
             if new_idx == 0:
                 #node subdivided but child is not yet allocated, no need to subdivide
                 return node_idx,  child_idx, False
@@ -260,8 +275,9 @@ cdef class Octree:
                   int child_idx, int point_idx):
         cdef int new_idx
         cdef float scale
-        cdef np.int32_t *children
-        cdef node_d *new_node, *parent
+        cdef int32_t *children
+        cdef node_d *new_node
+        cdef node_d *parent
         
         
         if self._next_node >= self._resize_limit:
@@ -296,6 +312,7 @@ cdef class Octree:
         new_node.point_idx = point_idx
         
         children = &parent.child0
+
         children[child_idx] = new_idx
         
         return new_idx
@@ -414,7 +431,7 @@ def _has_children(node_d[:] nodes):
     cdef bint any_have_children, _node_children
     cdef int i, j, N
     cdef node_d * _cnodes
-    cdef np.int32_t *children
+    cdef int32_t *children
     #cdef bool * _subdiv
     cdef np.uint8_t[:] subdiv
     
@@ -424,7 +441,8 @@ def _has_children(node_d[:] nodes):
     #_subdiv = &subdiv[0]
     
     any_have_children = False
-    
+
+
     for i in range(N):
         children = &_cnodes[i].child0
         _node_children = False
@@ -438,10 +456,22 @@ def _has_children(node_d[:] nodes):
             j+=1
                 
         subdiv[i] = _node_children
-        
+
+
+
     return subdiv, any_have_children
             
         
         
 def has_children(nodes):
     return _has_children(nodes.view(NODE_DTYPE2))
+
+cdef extern from *:
+    """
+    #ifdef __clang__
+    #pragma clang diagnostic pop
+    #endif
+    #ifdef __GNUC__
+    #pragma GCC diagnostic pop
+    #endif
+    """

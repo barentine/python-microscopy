@@ -104,7 +104,7 @@ class VisGUICore(object):
             #from PYME.LMVis.gl_render3D_shaders import LMGLShaderCanvas, LegacyGLCanvas        
 
             try:
-                if PYME.config.get('VisGUI-opengl-core-profile', False):
+                if PYME.config.get('VisGUI-opengl-core-profile', True):
                     from PYME.LMVis.glcanvas_core import LMGLShaderCanvas
                 else:
                     logger.debug('Using legacy GLCanvas')
@@ -443,9 +443,14 @@ class VisGUICore(object):
         
     def OnOpenFile(self, event):
         filename = wx.FileSelector("Choose a file to open", 
-                                   nameUtils.genResultDirectoryPath(), 
-                                   wildcard='All supported formats|*.h5r;*.txt;*.mat;*.csv;*.hdf;*.3d;*.3dlp|PYME Results Files (*.h5r)|*.h5r|Tab Formatted Text (*.txt)|*.txt|Matlab data (*.mat)|*.mat|Comma separated values (*.csv)|*.csv|HDF Tabular (*.hdf)|*.hdf')
-
+                                   nameUtils.genResultDirectoryPath(),
+                                   wildcard='|'.join(['All supported formats|*.h5r;*.txt;*.mat;*.csv;*.hdf;*.3d;*.3dlp;*.pvs',
+                                                      'PYME Results Files (*.h5r)|*.h5r',
+                                                      'Tab Formatted Text (*.txt)|*.txt',
+                                                      'Matlab data (*.mat)|*.mat',
+                                                      'Comma separated values (*.csv)|*.csv',
+                                                      'HDF Tabular (*.hdf)|*.hdf',
+                                                      'Session files (*.pvs)|*.pvs',]))
         #print filename
         if not filename == '':
             self.OpenFile(filename)
@@ -493,6 +498,20 @@ class VisGUICore(object):
             ds_name = mesh_ds[-1]
         
         l = QuiverRenderLayer(self.pipeline, dsname=ds_name)
+        self.add_layer(l)
+
+        logger.debug('Added layer, datasouce=%s' % l.dsname)
+        return l
+    
+    def add_image_layer(self, ds_name=None, channel=0, **kwargs):
+        from .layers import image_layer
+        if ds_name is None:
+            image_ds = [k for k, d in self.pipeline.dataSources.items() if hasattr(d, 'data_xyztc')]
+            if len(image_ds) == 0:
+                raise ValueError('No suitable image datasource found')
+            ds_name = image_ds[-1]
+        
+        l = image_layer.ImageRenderLayer(self.pipeline, dsname=ds_name, channel=channel, **kwargs)
         self.add_layer(l)
 
         logger.debug('Added layer, datasouce=%s' % l.dsname)
@@ -759,7 +778,7 @@ class VisGUICore(object):
                 self.add_pointcloud_layer(ds_name=('output.' + c), **layer_defaults.new_layer_settings('points_channel', i, overrides=dict(visible=False)))
                 
     def _populate_open_args(self, filename):
-        from PYME.warnings import warn
+        from PYME.pyme_warnings import warn
         args = {}
     
         if os.path.splitext(filename)[1] == '.h5r':

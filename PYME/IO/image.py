@@ -48,7 +48,7 @@ from PYME.IO.compatibility import np_load_legacy
 
 logger = logging.getLogger(__name__)
 import warnings
-import PYME.warnings
+import PYME.pyme_warnings
 
 class PYMEDeprecationWarning(DeprecationWarning):
     pass
@@ -423,7 +423,13 @@ class ImageStack(object):
         try:
             return ImageBounds(self.mdh['ImageBounds.x0'],self.mdh['ImageBounds.y0'],self.mdh['ImageBounds.x1'],self.mdh['ImageBounds.y1'],self.mdh['ImageBounds.z0'],self.mdh['ImageBounds.z1'])
         except:
-            return ImageBounds(0, 0, self.pixelSize*self.voxels.shape[0], self.pixelSize*self.voxels.shape[1],0, self.sliceSize*self.voxels.shape[2])
+            # if we don't have ImageBounds in the metadata, use origin and voxelsize to estimate
+            x0 = self.mdh.get('Origin.x', 0)
+            y0 = self.mdh.get('Origin.y', 0)
+            z0 = self.mdh.get('Origin.z', 0)
+            
+            return ImageBounds(x0, y0, x0 + self.voxelsize_nm.x*self.voxels.shape[0], y0 + self.voxelsize_nm.y*self.voxels.shape[1],
+                               z0, z0 + self.voxelsize_nm.z*self.voxels.shape[2])
 
     @imgBounds.setter
     def imgBounds(self, value):
@@ -511,7 +517,7 @@ class ImageStack(object):
         if self.dataSource.mdh is not None: #should be true the whole time    
             self.mdh.copyEntriesFrom(self.dataSource.mdh)
         else:
-            PYME.warnings.warn("ERROR: No metadata fond in file ... Carrying on with defaults - no gaurantees it'll work well")
+            PYME.pyme_warnings.warn("ERROR: No metadata fond in file ... Carrying on with defaults - no gaurantees it'll work well")
 
         #attempt to estimate any missing parameters from the data itself
         try:
@@ -1007,7 +1013,7 @@ class ImageStack(object):
         print(self.dataSource.shape)
 
         if getattr(self.dataSource, 'RGB', False):
-            PYME.warnings.warn('Detected an RGB TIFF.\n\nThese are typically screenshots, or other colour-mapped images and not generally suitable for quantitative analysis. Procced with caution (or preferably use the raw data instead).')
+            PYME.pyme_warnings.warn('Detected an RGB TIFF.\n\nThese are typically screenshots, or other colour-mapped images and not generally suitable for quantitative analysis. Procced with caution (or preferably use the raw data instead).')
         
         self.dataSource = BufferedDataSource.DataSource(self.dataSource, min(self.dataSource.getNumSlices(), 50))
         data = self.dataSource #this will get replaced with a wrapped version
@@ -1349,7 +1355,7 @@ class ImageStack(object):
                     # is used to force bioformats loading of tiffs which we otherwise wouldn't understand.
                     
                     if os.path.splitext(filename)[1] in ['.tiff']:
-                        PYME.warnings.warn("Bioformats could not be loaded, trying to load .tiff using native TIFF loader.\n\
+                        PYME.pyme_warnings.warn("Bioformats could not be loaded, trying to load .tiff using native TIFF loader.\n\
                                           This might not work as expected as the .tiff format is typically used for TIFFs\
                                           which don\'t load properly using the native code.\n\
                                           Try installing python-bioformats as detailed in step 4 of the installation instructions \
@@ -1357,7 +1363,7 @@ class ImageStack(object):
                         
                         self._loadTiff(filename)
                     else:
-                        PYME.warnings.warn('No native support for file type, and Bioformats could not be loaded. \n\
+                        PYME.pyme_warnings.warn('No native support for file type, and Bioformats could not be loaded. \n\
                             Try installing python-bioformats as detailed in step 4 of the installation instructions \
                             (http://python-microscopy.org/doc/Installation/InstallationWithAnaconda.html')
                             

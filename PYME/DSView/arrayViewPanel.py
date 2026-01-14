@@ -37,6 +37,9 @@ import matplotlib.cm
 from PYME.ui import wx_compat
 from PYME.ui import selection
 
+import logging
+logger = logging.getLogger(__name__)
+
 LUTCache = {}
 
 SLICE_AXIS_LUT = {DisplayOpts.SLICE_XY:2, DisplayOpts.SLICE_XZ:1,DisplayOpts.SLICE_YZ:0}
@@ -463,14 +466,17 @@ class ArrayViewPanel(scrolledImagePanel.ScrolledImagePanel):
         dc.SetBrush(wx.NullBrush)
             
         for ovl in self.overlays:
-            ovl(self, dc)
+            try:
+                ovl(self, dc)
+            except Exception as e:
+                logger.exception('Error occurred while drawing overlay: %s', e)
 
     def GrabImage(self, fullImage=True):
         #TODO - get suitable image dependent viewport
 
         xs, ys = self._unscrolled_view_size()
         if fullImage:
-            from PYME import warnings
+            from PYME import pyme_warnings as warnings
             if (xs > 2e3 or ys > 2e3) and not warnings.warn('Captured image will be very large, continue?',allow_cancel=True):
                 return
         else:

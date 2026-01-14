@@ -29,7 +29,7 @@ from ._base import Plugin
 import logging
 logger = logging.getLogger(__name__)
 
-import PYME.warnings
+import PYME.pyme_warnings
 
 class PsfExtractor(Plugin):
     def __init__(self, dsviewer):
@@ -191,18 +191,22 @@ class PsfExtractor(Plugin):
                 
         #if we have a muilt-colour stack, 
         chnum = self.chChannel.GetSelection()
-                
+        t = self.do.tp
+
         rsx, rsy, rsz = [int(s) for s in self.tPSFROI.GetValue().split(',')]
         #print self.do.xp-rsx, self.do.xp+rsx + 1, self.do.yp-rsy, self.do.yp+rsy+1, chnum
         #print self.image.data[(self.do.xp-rsx):(self.do.xp+rsx + 1),(self.do.yp-rsy):(self.do.yp+rsy+1), :, chnum]
-        dx, dy, dz = extractImages.getIntCenter(self.image.data[(self.do.xp-rsx):(self.do.xp+rsx + 1),(self.do.yp-rsy):(self.do.yp+rsy+1), :, chnum])
-        self.PSFLocs.append((self.do.xp + dx, self.do.yp + dy, dz))
+
+        z0 = max(int(self.do.zp-rsz), 0)
+        dx, dy, dz = extractImages.getIntCenter(self.image.data_xyztc[int(self.do.xp-rsx):int(self.do.xp+rsx + 1), int(self.do.yp-rsy):int(self.do.yp+rsy+1), z0:min(int(self.do.zp+rsz + 1), self.image.data.shape[2]), t, chnum].squeeze())
+        self.PSFLocs.append((self.do.xp + dx, self.do.yp + dy, z0 + dz))
         self.view.psfROIs = self.PSFLocs
         self.view.Refresh()
 
     def OnTagPoints(self, event):
         from PYME.Analysis.PSFEst import extractImages
         chnum = self.chChannel.GetSelection()
+        t = self.do.tp # TODO - fix time point handling
         rsx, rsy, rsz = [int(s) for s in self.tPSFROI.GetValue().split(',')]
         try:
             pts = self.dsviewer.blobFinding.points
@@ -210,12 +214,13 @@ class PsfExtractor(Plugin):
             raise AttributeError('Could not find blobFinding.points, make sure the `blobFinding` module is loaded and you have clicked `Find`')
 
         for xp, yp, zp in pts:
-            if ((xp > rsx) and (xp < (self.image.data.shape[0] - rsx)) and
-                (yp > rsy) and (yp < (self.image.data.shape[1] - rsy))):
-                    
-                    dx, dy, dz = extractImages.getIntCenter(self.image.data[(xp-rsx):(xp+rsx + 1),(yp-rsy):(yp+rsy+1), :, chnum])
-                    self.PSFLocs.append((xp + dx, yp + dy, dz))
-        
+            if ((xp > rsx) and (xp < (self.image.data_xyztc.shape[0] - rsx)) and
+                (yp > rsy) and (yp < (self.image.data_xyztc.shape[1] - rsy))):
+
+                    z0 = max(int(zp-rsz), 0)
+                    dx, dy, dz = extractImages.getIntCenter(self.image.data_xyztc[int(xp-rsx):int(xp+rsx + 1),int(yp-rsy):int(yp+rsy+1), z0:min(int(zp+rsz + 1), self.image.data.shape[2]), t, chnum].squeeze())
+                    self.PSFLocs.append((xp + dx, yp + dy, z0 + dz))
+
         #self.view.psfROIs = self.PSFLocs
         self.view.Refresh()
 
@@ -312,10 +317,10 @@ class PsfExtractor(Plugin):
             psfBlur = [float(s) for s in self.tPSFBlur.GetValue().split(',')]
 
             if self.image.data.shape[2]*self.image.voxelsize_nm.z < 3000:
-                PYME.warnings.warn('Calibration stack is only %3.2f um in z (recommended 4 um or more)' % (self.image.data.shape[2]*self.image.voxelsize_nm.z/1000.0))
+                PYME.pyme_warnings.warn('Calibration stack is only %3.2f um in z (recommended 4 um or more)' % (self.image.data.shape[2]*self.image.voxelsize_nm.z/1000.0))
             
             if psfROISize[2]*self.image.voxelsize_nm.z < 1000:
-                PYME.warnings.warn('Requested PSF ROI is less than 2um in z (recommended size 3 um, or %d voxel half-sze in this image)' % (1500/self.image.voxelsize_nm.z))
+                PYME.pyme_warnings.warn('Requested PSF ROI is less than 2um in z (recommended size 3 um, or %d voxel half-sze in this image)' % (1500/self.image.voxelsize_nm.z))
 
             #print psfROISize
             psf, offsets = extractImages.getPSF3D(self.image.data[:,:,:,chnum], self.PSFLocs, psfROISize, psfBlur,
