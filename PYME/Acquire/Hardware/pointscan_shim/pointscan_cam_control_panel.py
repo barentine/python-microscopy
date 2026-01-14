@@ -1,13 +1,16 @@
 
 import wx
 from PYME.Acquire.Hardware.pco import pco_sdk_cam_control_panel
-
+import threading
+import time
 
 class ScanParamControl(wx.Panel):
     def __init__(self, parent, cam):
         wx.Panel.__init__(self, parent)
         self.cam = cam
         self.scanner = cam.scanner
+        self.polling_thread = None
+        self.polling_active = False
 
         # Create controls
         self.width = wx.TextCtrl(self, -1, str(self.scanner.width), size=(50, -1))
@@ -56,6 +59,33 @@ class ScanParamControl(wx.Panel):
 
         # Set the main sizer
         self.SetSizerAndFit(self.vsizer)
+
+        self.start_polling()
+
+    def start_polling(self):
+        """Start a thread to poll the scanning lock state."""
+        self.polling_active = True
+        self.polling_thread = threading.Thread(target=self.poll_scanning_lock)
+        self.polling_thread.daemon = True  # Ensure the thread exits when the program exits
+        self.polling_thread.start()
+
+    def stop_polling(self):
+        """Stop the polling thread."""
+        self.polling_active = False
+        if self.polling_thread:
+            self.polling_thread.join()
+
+    def poll_scanning_lock(self):
+        """Poll the scanning lock state and update the GUI."""
+        while self.polling_active:
+            is_locked = self.scanner._scanning_lock.locked()
+            wx.CallAfter(self.update_scanning_indicator, is_locked)
+            time.sleep(0.1)
+
+    def update_scanning_indicator(self, is_locked):
+        """Update the scanning indicator based on the lock state."""
+        self.scanning_indicator.SetLabel(f"Scanning: {is_locked}")
+        self.scanning_indicator.SetForegroundColour(wx.RED if is_locked else wx.GREEN)
     
     def on_width_change(self, event=None):
         self.scanner.width = int(self.width.GetValue())
@@ -78,10 +108,12 @@ class ScanParamControl(wx.Panel):
         self.voxelsize_x_nm.SetValue(str(self.scanner.voxelsize_x_nm))
         self.voxelsize_y_nm.SetValue(str(self.scanner.voxelsize_y_nm))
         self.voxel_integration_time.SetValue(str(self.scanner.voxel_integration_time))
-        # self.pixel_clock_rate.SetValue(str(self.scanner.pixel_clock_rate))
-        self.scanning_indicator.SetLabel("Scanning: " + str(self.scanner._scanning_lock.locked()))
-        self.scanning_indicator.SetForegroundColour(wx.RED if self.scanner._scanning_lock.locked() else wx.GREEN)
+        self.update_scanning_indicator(self.scanner._scanning_lock.locked())
     
+    def Destroy(self):
+        """Ensure the polling thread is stopped when the panel is destroyed."""
+        self.stop_polling()
+        super().Destroy()
 
 
         
