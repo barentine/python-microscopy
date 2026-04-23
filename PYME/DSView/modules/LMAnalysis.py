@@ -113,6 +113,8 @@ def _verifyClusterResultsFilename(resultsFilename):
 class AnalysisSettingsView(object):
     FINDING_PARAMS = [mde.FloatParam('Analysis.DetectionThreshold', 'Thresh:', 1.0),
                       mde.IntParam('Analysis.DebounceRadius', 'Debounce rad:', 4),
+                      mde.FloatParam('Analysis.DetectionRadiusLowpass', 'Filter rad (low):', 1.0),
+                      mde.FloatParam('Analysis.DetectionRadiusHighpass', 'Filter rad (high):', 3.0),
     ]
     
     DEFAULT_PARAMS = [mde.IntParam('Analysis.StartAt', 'Start at:', default=30),
