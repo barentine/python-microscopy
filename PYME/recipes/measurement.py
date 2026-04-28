@@ -132,7 +132,7 @@ class DetectPoints2D(ModuleBase):
     Returns
     -------
     output_name : Output
-        PYME.IO.tabular containing x and y coordinates of each point, as well as the frame index they were detected on
+        PYME.IO.tabular containing x and y coordinates of each point in [nanometers], as well as the frame index they were detected on
 
     Notes
     -----
@@ -184,7 +184,8 @@ class DetectPoints2D(ModuleBase):
             y.append(finder.y[:])
             t.append(ti * np.ones_like(finder.x[:]))
 
-        return tabular.DictSource({'x': np.concatenate(x, axis=0), 'y': np.concatenate(y, axis=0),
+        return tabular.DictSource({'x': np.concatenate(x, axis=0)*input_name.mdh.voxelsize_nm.x,
+                                   'y': np.concatenate(y, axis=0)*input_name.mdh.voxelsize_nm.y,
                                      't': np.concatenate(t, axis=0)})
 
 
