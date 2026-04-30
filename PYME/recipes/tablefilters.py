@@ -271,5 +271,65 @@ class RandomSubset(ModuleBase):
             logger.warning('RandomSubset: Selecting %d from %d rows will not be very random' % (self.num_to_select, n_rows))
         
         return tabular.RandomSelectionFilter(input, num_Samples=min(n_rows, self.num_to_select))
-        
+
+
+@register_module('JoinIndexAlignedTables')
+class JoinIndexAlignedTables(ModuleBase):
+    """Join two to four index-aligned tabular sources column-wise, prefixing each
+    source's columns to avoid name collisions.
+
+    All non-empty inputs must have the same number of rows. Each column ``col``
+    from ``inputName0`` appears in the output as ``<prefix0>col``, and so on.
+    Columns that share a name across inputs are disambiguated by the prefix, so
+    you can safely join tables that come from the same fit module (and therefore
+    have identical column names).
+
+    Parameters
+    ----------
+    inputName0..3 : Input
+        Index-aligned tabular sources.  inputName1..3 are optional.
+    prefix0..3 : CStr
+        Prefix prepended to every column name from the corresponding input.
+        Defaults to ``'chan0_'``, ``'chan1_'``, ``'chan2_'``, ``'chan3_'``.
+
+    Returns
+    -------
+    outputName : Output
+        Flat tabular with all prefixed columns from each non-empty input.
+    """
+    inputName0 = Input('chan0')
+    inputName1 = Input('chan1')
+    inputName2 = Input('')
+    inputName3 = Input('')
+    prefix0 = CStr('chan0_')
+    prefix1 = CStr('chan1_')
+    prefix2 = CStr('chan2_')
+    prefix3 = CStr('chan3_')
+    outputName = Output('joined')
+
+    def run(self, inputName0, inputName1, inputName2=None, inputName3=None):
+        inputs = [(inputName0, self.prefix0),
+                  (inputName1, self.prefix1)]
+        if inputName2 is not None:
+            inputs.append((inputName2, self.prefix2))
+        if inputName3 is not None:
+            inputs.append((inputName3, self.prefix3))
+
+        n_rows = len(inputName0['x'])
+        for src, pfx in inputs[1:]:
+            if len(src['x']) != n_rows:
+                raise ValueError(
+                    'JoinIndexAlignedTables: all inputs must have the same number of rows '
+                    '(input0 has %d, a later input has %d)' % (n_rows, len(src['x'])))
+
+        out = {}
+        for src, pfx in inputs:
+            for k in src.keys():
+                out[pfx + k] = np.array(src[k])
+
+        result = tabular.DictSource(out)
+        if hasattr(inputName0, 'mdh'):
+            result.mdh = inputName0.mdh
+        return result
+
         
