@@ -266,6 +266,7 @@ class FitPoints(ModuleBase):
 
         #copy fitting parameters into metadata
         md.update(self.parameters)
+        md['Analysis.FitModule'] = self.fitModule
 
         fitMod = import_fit_factory(self.fitModule) #import our fitting module
 
