@@ -154,7 +154,7 @@ class IntegrationSliders(wx.Panel):
             # TODO - fix this for new wx
 
         if nsliders > 1:
-            sz = wx.StaticBoxSizer(wx.StaticBox(self, -1, self.chaninfo.names[c] + " (ms)"), wx.HORIZONTAl)
+            sz = wx.StaticBoxSizer(wx.StaticBox(self, -1, self.chaninfo.names[c] + " (ms)"), wx.HORIZONTAL)
         else:
             sz = wx.BoxSizer(wx.HORIZONTAL)
 
