@@ -170,7 +170,9 @@ class ShiftmapSelectionDialog(wx.Dialog):
 
         sizer1 = wx.BoxSizer(wx.VERTICAL)
         
-        sizer2 = wx.GridSizer(nChans, 2, 5, 5)
+        # rows=0 => let wx work out the number of rows from the column count. We add a
+        # header row on top of one row per channel, so an explicit nChans would be too few.
+        sizer2 = wx.GridSizer(0, 2, 5, 5)
         
         sizer2.Add(wx.StaticText(self, -1, 'Channel:'))
         sizer2.Add(wx.StaticText(self, -1, 'Shiftmap:'))
