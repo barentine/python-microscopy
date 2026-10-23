@@ -42,6 +42,30 @@ FIDUCIAL_PARAMS = [
               ]
 
 
+def drop_unset_map_fields(cleaned_data):
+    """
+    Remove camera map entries which have not been set from submitted form data.
+
+    Analysis settings override the series metadata, so an empty map field would otherwise
+    clobber map IDs recorded at acquisition time.
+
+    Parameters
+    ----------
+    cleaned_data : dict
+        cleaned data from the localization settings form. Modified in place.
+
+    Returns
+    -------
+    dict
+        the same dictionary, with empty or '<none>' map entries removed
+    """
+    for p in SCMOS_PARAMS:
+        if cleaned_data.get(p.paramName, '') in ('', p.default):
+            cleaned_data.pop(p.paramName, None)
+
+    return cleaned_data
+
+
 #class GroupedForm(django.forms.Form)
 
 #we need to keep hold of the pusher objects so they don't get GCed whilst still pushing
@@ -119,6 +143,7 @@ def localize(request, analysisModule='LatGaussFitFR'):
     f.is_valid()
 
     f.cleaned_data['Analysis.FitModule'] = analysisModule
+    drop_unset_map_fields(f.cleaned_data)
 
     #print json.dumps(f.cleaned_data)
     # NB - any metadata entries given here will override the series metadata later: pass analysis settings only
